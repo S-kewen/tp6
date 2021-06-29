@@ -14,7 +14,6 @@ class UserService extends Model{
         $list = UserService::where($where)
         			->order($order)
         			->page($page,$total)
-                    ->limit(1)
         			->select();
         if($list->isEmpty()){
         	return null;
@@ -29,7 +28,7 @@ class UserService extends Model{
     public function insertOne($params){
         return Db::table('t_user')->insert($params);;
     }
-    public function findOne($where){
+    public function getCount($where){
         return UserService::where($where)
                     ->limit(1)
                     ->count();
@@ -39,5 +38,10 @@ class UserService extends Model{
     }
     public function deleteOne($where){
         return Db::table('t_user')->where($where)->limit(1)->delete();
+    }
+    public function selectOne($where){
+        return UserService::where($where)
+                    ->limit(1)
+                    ->select();
     }
 }
