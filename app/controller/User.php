@@ -7,16 +7,16 @@ use think\facade\View;
 use think\facade\Db;
 use think\facade\Request;
 use app\model\UserService;
+use app\result\MyResult;
+use app\result\StatusCode;
+use app\result\StatusMsg;
+use app\util\TokenUtil;
 
 class User extends BaseController
 {
     public function index()
     {
-        echo json_encode([
-            'code' => 200,
-            'msg' => 'success'
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+        return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS);
     }
 
     public function list()
@@ -31,43 +31,29 @@ class User extends BaseController
         if (isset($param['state'])) {
             $where['state'] = $param['state'];
         }
-        $pageNumber = isset($param['pageNumber']) ? $param['pageNumber'] : 1;
-        $pageSize = isset($param['pageSize']) ? $param['pageSize'] : 20;
         $userService = new UserService();
-        $maps = $userService->list(isset($where) ? $where : true, isset($order) ? $order : ['id DESC'], $pageNumber, $pageSize);
-        echo json_encode([
-            'code' => 200,
-            'msg' => 'success',
-            'data' => [
-                'list' => $maps['data'],
-                'total' => $maps['count']
-            ]
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+        $maps = $userService->list($where ?? true, $order ?? ['id DESC'], $param['pageNumber'] ?? 1, $param['pageSize'] ?? 20);
+        return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS, ['list' => $maps['data'], 'total' => $maps['count']]);
     }
 
     public function create()
     {
         $param = Request::param();
         if (!isset($param['username']) || !isset($param['password'])) {
-            echo json_encode(['code' => -1000, 'msg' => '参数错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$REQUEST_PARAMERROR, StatusMsg::$REQUEST_PARAMERROR);
         }
         $userService = new UserService();
         $where['username'] = $param['username'];
         if ($userService->getCount($where) > 0) {
-            echo json_encode(['code' => -1001, 'msg' => '该用户已存在'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_USEREXIST, StatusMsg::$USER_USEREXIST);
         }
         $where['password'] = $param['password'];
-        $where['type'] = isset($param['type']) ? $param['type'] : 1;
-        $where['state'] = isset($param['state']) ? $param['state'] : 1;
+        $where['type'] = $param['type'] ?? 1;
+        $where['state'] = $param['state'] ?? 1;
         if ($userService->insertOne($where)) {
-            echo json_encode(['code' => 200, 'msg' => 'success'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS);
         } else {
-            echo json_encode(['code' => -1002, 'msg' => '插入数据失败'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_REGISTERFAIL, StatusMsg::$USER_REGISTERFAIL);
         }
 
     }
@@ -76,22 +62,18 @@ class User extends BaseController
     {
         $param = Request::param();
         if (!isset($param['id']) || !isset($param['state'])) {
-            echo json_encode(['code' => -1000, 'msg' => '参数错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$REQUEST_PARAMERROR, StatusMsg::$REQUEST_PARAMERROR);
         }
         $userService = new UserService();
         $where['id'] = $param['id'];
         if ($userService->getCount($where) == 0) {
-            echo json_encode(['code' => -1001, 'msg' => '该用户不存在'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_USERNOTEXIST, StatusMsg::$USER_USERNOTEXIST);
         }
         $set['state'] = $param['state'];
         if ($userService->updateOne($where, $set)) {
-            echo json_encode(['code' => 200, 'msg' => 'success'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS);
         } else {
-            echo json_encode(['code' => -1002, 'msg' => '修改信息失败'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_UPDATEFAIL, StatusMsg::$USER_UPDATEFAIL);
         }
 
     }
@@ -100,21 +82,17 @@ class User extends BaseController
     {
         $param = Request::param();
         if (!isset($param['id'])) {
-            echo json_encode(['code' => -1000, 'msg' => '参数错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$REQUEST_PARAMERROR, StatusMsg::$REQUEST_PARAMERROR);
         }
         $userService = new UserService();
         $where['id'] = $param['id'];
         if ($userService->getCount($where) == 0) {
-            echo json_encode(['code' => -1001, 'msg' => '该用户不存在'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_USERNOTEXIST, StatusMsg::$USER_USERNOTEXIST);
         }
         if ($userService->deleteOne($where)) {
-            echo json_encode(['code' => 200, 'msg' => 'success'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS);
         } else {
-            echo json_encode(['code' => -1002, 'msg' => '删除失败'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_DELETEFAIL, StatusMsg::$USER_DELETEFAIL);
         }
 
     }
@@ -123,19 +101,16 @@ class User extends BaseController
     {
         $param = Request::param();
         if (!isset($param['username']) || !isset($param['password'])) {
-            echo json_encode(['code' => -1000, 'msg' => '参数错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$REQUEST_PARAMERROR, StatusMsg::$REQUEST_PARAMERROR);
         }
         $userService = new UserService();
         $where['username'] = $param['username'];
         $where['password'] = $param['password'];
         $maps = $userService->selectOne($where);
         if (!$maps->isEmpty()) {
-            echo json_encode(['code' => 200, 'msg' => 'success', 'id' => $maps[0]['id'], 'token' => createToken($maps[0])], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS, ['id' => $maps[0]['id'], 'token' => TokenUtil::createToken($maps[0])]);
         } else {
-            echo json_encode(['code' => -1002, 'msg' => '用户名或密码错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$USER_USERNAMEORPASSWORDERROR, StatusMsg::$USER_USERNAMEORPASSWORDERROR);
         }
     }
 
@@ -143,16 +118,13 @@ class User extends BaseController
     {
         $header = Request::header();
         if (!isset($header['authorization'])) {
-            echo json_encode(['code' => -1000, 'msg' => '参数错误'], JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$REQUEST_PARAMERROR, StatusMsg::$REQUEST_PARAMERROR);
         }
-        $maps = parseToken($header['authorization']);
+        $maps = TokenUtil::parseToken($header['authorization']);
         if ($maps['code'] == 200) {
-            echo json_encode($maps, JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$SUCCESS, StatusMsg::$SUCCESS, $maps);
         } else {
-            echo json_encode($maps, JSON_UNESCAPED_UNICODE);
-            exit;
+            return MyResult::myResult(StatusCode::$TOKENINVAILD, StatusMsg::$TOKENINVAILD, $maps);
         }
     }
 }
